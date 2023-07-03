@@ -20,8 +20,8 @@ _exports_32() {
   elif [ -d '/usr/lib/i386-linux-gnu/pkgconfig' ]; then # Ubuntu 18.04/19.04 path
     export PKG_CONFIG_PATH='/usr/lib/i386-linux-gnu/pkgconfig'
     if [[ "$_plain_version" = *_8.0 ]]; then
-      CFLAGS+=" -I/usr/include/gstreamer-1.0"
-      CROSSCFLAGS+=" -I/usr/include/gstreamer-1.0"
+      CFLAGS+=" -I/usr/lib/i386-linux-gnu/glib-2.0/include -I/usr/include/glib-2.0 -I/usr/include/gstreamer-1.0 -I/usr/lib/i386-linux-gnu/gstreamer-1.0/include"
+      CROSSCFLAGS+=" -I/usr/lib/i386-linux-gnu/glib-2.0/include -I/usr/include/glib-2.0 -I/usr/include/gstreamer-1.0 -I/usr/lib/i386-linux-gnu/gstreamer-1.0/include"
     fi
   else
     export PKG_CONFIG_PATH='/usr/lib/pkgconfig' # Pretty common path, possibly helpful for OpenSuse & Fedora
