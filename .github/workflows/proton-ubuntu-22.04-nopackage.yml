@@ -11,6 +11,8 @@ jobs:
     steps:
       - uses: actions-rs/toolchain@v1
         name: Install rust
+        with:
+          toolchain: stable
       - uses: actions/checkout@v2
       - name: Compile
         run: |
