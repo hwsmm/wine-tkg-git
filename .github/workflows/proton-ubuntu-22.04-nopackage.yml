@@ -15,9 +15,7 @@ jobs:
           sed -i 's|archive.ubuntu.com|azure.archive.ubuntu.com|g' /etc/apt/sources.list
           dpkg --add-architecture i386
           apt-get -y update
-          apt-get -y upgrade
-          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
-          apt-get -y install build-essential gcc-multilib sudo
+          DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata build-essential sudo
           useradd user -G sudo && echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
           chown user -R ..
           chown user -R /tmp
@@ -27,6 +25,7 @@ jobs:
           sed -i 's/uninstaller="false"/uninstaller="true"/' proton-tkg.cfg
           sed -i 's/autoinstall="false"/autoinstall="true"/' proton-tkg.cfg
           sed -i 's/build_gstreamer="false"/build_gstreamer="true"/' proton-tkg.cfg
+          sed -i 's/lib32_gstreamer="false"/lib32_gstreamer="true"/' proton-tkg.cfg
           echo '_ci_build="true"' >> proton-tkg.cfg
           touch tarplz
           yes|./proton-tkg.sh

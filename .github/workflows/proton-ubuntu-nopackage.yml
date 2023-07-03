@@ -16,7 +16,6 @@ jobs:
           sudo apt-get -y install aptitude ppa-purge
           yes|sudo ppa-purge ppa:ubuntu-toolchain-r/test
           sudo aptitude -y remove '?narrow(?installed,?version(deb.sury.org))'
-          sudo apt-get -y upgrade
           sudo apt-get -y install build-essential
           export CARGO_HOME="$PWD"
           rustup target add i686-unknown-linux-gnu
@@ -25,6 +24,7 @@ jobs:
           sed -i 's/uninstaller="false"/uninstaller="true"/' proton-tkg.cfg
           sed -i 's/autoinstall="false"/autoinstall="true"/' proton-tkg.cfg
           sed -i 's/build_gstreamer="false"/build_gstreamer="true"/' proton-tkg.cfg
+          sed -i 's/lib32_gstreamer="false"/lib32_gstreamer="true"/' proton-tkg.cfg
           echo '_ci_build="true"' >> proton-tkg.cfg
           touch tarplz
           yes|./proton-tkg.sh
