@@ -1,11 +1,12 @@
-name: Proton Valve xbe nopackage Ubuntu CI
+name: Proton Valve xbe nopackage Ubuntu 22.04 container CI
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+    container: ubuntu:22.04
 
     steps:
       - uses: actions/checkout@v2
@@ -13,14 +14,8 @@ jobs:
         run: |
           sudo dpkg --add-architecture i386
           sudo apt-get -y update
-          sudo apt-get -y install aptitude ppa-purge
-          yes|sudo ppa-purge ppa:ubuntu-toolchain-r/test
-          sudo aptitude -y remove '?narrow(?installed,?version(deb.sury.org))'
-          sudo apt-mark hold firefox
           sudo apt-get -y upgrade
-          sudo apt-get -y install build-essential libgcc-s1:i386 libstdc++6:i386 libpython3.10-stdlib:i386 python3.10:i386 libgomp1:i386
-          export CARGO_HOME="$PWD"
-          rustup target add i686-unknown-linux-gnu
+          sudo apt-get -y install build-essential gcc-multilib
           cd proton-tkg
           sed -i 's/distro=""/distro="debuntu"/' proton-tkg.cfg
           sed -i 's/uninstaller="false"/uninstaller="true"/' proton-tkg.cfg
