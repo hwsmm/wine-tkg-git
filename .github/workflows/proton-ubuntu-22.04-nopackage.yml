@@ -16,7 +16,7 @@ jobs:
           apt-get -y update
           apt-get -y upgrade
           apt-get -y install build-essential gcc-multilib sudo
-          useradd user -G wheel && echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          useradd user -G sudo && echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
           chown user -R ..
           chown user -R /tmp
           export CARGO_HOME="$PWD"
