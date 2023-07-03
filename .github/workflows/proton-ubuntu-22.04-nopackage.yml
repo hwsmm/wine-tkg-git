@@ -12,10 +12,14 @@ jobs:
       - uses: actions/checkout@v2
       - name: Compile
         run: |
-          sudo dpkg --add-architecture i386
-          sudo apt-get -y update
-          sudo apt-get -y upgrade
-          sudo apt-get -y install build-essential gcc-multilib
+          dpkg --add-architecture i386
+          apt-get -y update
+          apt-get -y upgrade
+          apt-get -y install build-essential gcc-multilib sudo
+          useradd user -G wheel && echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          chown user -R ..
+          chown user -R /tmp
+          export CARGO_HOME="$PWD"
           cd proton-tkg
           sed -i 's/distro=""/distro="debuntu"/' proton-tkg.cfg
           sed -i 's/uninstaller="false"/uninstaller="true"/' proton-tkg.cfg
