@@ -15,7 +15,8 @@ jobs:
           sed -i 's|archive.ubuntu.com|azure.archive.ubuntu.com|g' /etc/apt/sources.list
           dpkg --add-architecture i386
           apt-get -y update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata build-essential sudo
+          DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata build-essential sudo cmake python3-pip
+          yes|pip3 install meson --exists-action i
           useradd user -G sudo && echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
           chown user -R ..
           chown user -R /tmp
