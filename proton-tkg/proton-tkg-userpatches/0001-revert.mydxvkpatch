@@ -1,0 +1,673 @@
+From 140a2cb07bc0d31dd07e6a035c008184c15ff747 Mon Sep 17 00:00:00 2001
+From: hey <hey@localhost.localdomain>
+Date: Tue, 4 Jul 2023 03:31:05 +0900
+Subject: [PATCH] revert
+
+---
+ src/d3d11/d3d11_device.cpp         |  30 ++---
+ src/d3d11/d3d11_device.h           |  19 +---
+ src/d3d11/d3d11_main.cpp           | 172 +----------------------------
+ src/d3d11/d3d11_on_12.cpp          | 150 -------------------------
+ src/d3d11/d3d11_on_12.h            |  75 -------------
+ src/d3d11/d3d11_on_12_interfaces.h |  56 ----------
+ src/d3d11/meson.build              |   1 -
+ 7 files changed, 20 insertions(+), 483 deletions(-)
+ delete mode 100644 src/d3d11/d3d11_on_12.cpp
+ delete mode 100644 src/d3d11/d3d11_on_12.h
+ delete mode 100644 src/d3d11/d3d11_on_12_interfaces.h
+
+diff --git a/src/d3d11/d3d11_device.cpp b/src/d3d11/d3d11_device.cpp
+index bc107ef..bf1b0c0 100644
+--- a/src/d3d11/d3d11_device.cpp
++++ b/src/d3d11/d3d11_device.cpp
+@@ -1832,11 +1832,6 @@ namespace dxvk {
+           DXGI_VK_FORMAT_MODE   Mode) const {
+     return m_d3d11Formats.GetFormatFamily(Format, Mode);
+   }
+-
+-
+-  bool D3D11Device::Is11on12Device() const {
+-    return m_container->Is11on12Device();
+-  }
+   
+   
+   void D3D11Device::FlushInitContext() {
+@@ -3067,22 +3062,18 @@ namespace dxvk {
+ 
+   D3D11DXGIDevice::D3D11DXGIDevice(
+           IDXGIAdapter*       pAdapter,
+-          ID3D12Device*       pD3D12Device,
+-          ID3D12CommandQueue* pD3D12Queue,
+-          Rc<DxvkInstance>    pDxvkInstance,
+-          Rc<DxvkAdapter>     pDxvkAdapter,
+-          Rc<DxvkDevice>      pDxvkDevice,
++    const Rc<DxvkInstance>&   pDxvkInstance,
++    const Rc<DxvkAdapter>&    pDxvkAdapter,
+           D3D_FEATURE_LEVEL   FeatureLevel,
+           UINT                FeatureFlags)
+   : m_dxgiAdapter   (pAdapter),
+     m_dxvkInstance  (pDxvkInstance),
+     m_dxvkAdapter   (pDxvkAdapter),
+-    m_dxvkDevice    (pDxvkDevice),
++    m_dxvkDevice    (CreateDevice(FeatureLevel)),
+     m_d3d11Device   (this, FeatureLevel, FeatureFlags),
+     m_d3d11DeviceExt(this, &m_d3d11Device),
+     m_d3d11Interop  (this, &m_d3d11Device),
+     m_d3d11Video    (this, &m_d3d11Device),
+-    m_d3d11on12     (this, &m_d3d11Device, pD3D12Device, pD3D12Queue),
+     m_metaDevice    (this),
+     m_dxvkFactory   (this, &m_d3d11Device) {
+ 
+@@ -3090,7 +3081,7 @@ namespace dxvk {
+   
+   
+   D3D11DXGIDevice::~D3D11DXGIDevice() {
+-
++    
+   }
+   
+   
+@@ -3154,13 +3145,6 @@ namespace dxvk {
+       return S_OK;
+     }
+ 
+-    if (m_d3d11on12.Is11on12Device()) {
+-      if (riid == __uuidof(ID3D11On12Device)) {
+-        *ppvObject = ref(&m_d3d11on12);
+-        return S_OK;
+-      }
+-    }
+-
+     if (riid == __uuidof(ID3D10Multithread)) {
+       Com<ID3D11DeviceContext> context;
+       m_d3d11Device.GetImmediateContext(&context);
+@@ -3424,4 +3408,10 @@ namespace dxvk {
+     return m_dxvkDevice;
+   }
+ 
++
++  Rc<DxvkDevice> D3D11DXGIDevice::CreateDevice(D3D_FEATURE_LEVEL FeatureLevel) {
++    DxvkDeviceFeatures deviceFeatures = D3D11Device::GetDeviceFeatures(m_dxvkAdapter);
++    return m_dxvkAdapter->createDevice(m_dxvkInstance, deviceFeatures);
++  }
++
+ }
+diff --git a/src/d3d11/d3d11_device.h b/src/d3d11/d3d11_device.h
+index 7a44b5a..b30f2fb 100644
+--- a/src/d3d11/d3d11_device.h
++++ b/src/d3d11/d3d11_device.h
+@@ -20,7 +20,6 @@
+ #include "d3d11_initializer.h"
+ #include "d3d11_interfaces.h"
+ #include "d3d11_interop.h"
+-#include "d3d11_on_12.h"
+ #include "d3d11_options.h"
+ #include "d3d11_shader.h"
+ #include "d3d11_state.h"
+@@ -426,8 +425,6 @@ namespace dxvk {
+       return m_context.ptr();
+     }
+ 
+-    bool Is11on12Device() const;
+-
+     static D3D_FEATURE_LEVEL GetMaxFeatureLevel(
+       const Rc<DxvkInstance>& Instance,
+       const Rc<DxvkAdapter>&  Adapter);
+@@ -437,7 +434,7 @@ namespace dxvk {
+     
+   private:
+     
+-    D3D11DXGIDevice*                m_container;
++    IDXGIObject*                    m_container;
+ 
+     D3D_FEATURE_LEVEL               m_featureLevel;
+     UINT                            m_featureFlags;
+@@ -771,11 +768,8 @@ namespace dxvk {
+     
+     D3D11DXGIDevice(
+             IDXGIAdapter*       pAdapter,
+-            ID3D12Device*       pD3D12Device,
+-            ID3D12CommandQueue* pD3D12Queue,
+-            Rc<DxvkInstance>    pDxvkInstance,
+-            Rc<DxvkAdapter>     pDxvkAdapter,
+-            Rc<DxvkDevice>      pDxvkDevice,
++      const Rc<DxvkInstance>&   pDxvkInstance,
++      const Rc<DxvkAdapter>&    pDxvkAdapter,
+             D3D_FEATURE_LEVEL   FeatureLevel,
+             UINT                FeatureFlags);
+     
+@@ -844,10 +838,6 @@ namespace dxvk {
+     
+     Rc<DxvkDevice> STDMETHODCALLTYPE GetDXVKDevice();
+ 
+-    BOOL Is11on12Device() const {
+-      return m_d3d11on12.Is11on12Device();
+-    }
+-
+   private:
+ 
+     Com<IDXGIAdapter>   m_dxgiAdapter;
+@@ -860,13 +850,14 @@ namespace dxvk {
+     D3D11DeviceExt      m_d3d11DeviceExt;
+     D3D11VkInterop      m_d3d11Interop;
+     D3D11VideoDevice    m_d3d11Video;
+-    D3D11on12Device     m_d3d11on12;
+     DXGIDXVKDevice      m_metaDevice;
+     
+     DXGIVkSwapChainFactory   m_dxvkFactory;
+     
+     uint32_t m_frameLatency = DefaultFrameLatency;
+ 
++    Rc<DxvkDevice> CreateDevice(D3D_FEATURE_LEVEL FeatureLevel);
++
+   };
+   
+ }
+diff --git a/src/d3d11/d3d11_main.cpp b/src/d3d11/d3d11_main.cpp
+index 0c0aad6..3653753 100644
+--- a/src/d3d11/d3d11_main.cpp
++++ b/src/d3d11/d3d11_main.cpp
+@@ -89,13 +89,8 @@ extern "C" {
+     try {
+       Logger::info(str::format("D3D11CoreCreateDevice: Using feature level ", devFeatureLevel));
+ 
+-      DxvkDeviceFeatures deviceFeatures = D3D11Device::GetDeviceFeatures(dxvkAdapter);
+-      Rc<DxvkDevice> dxvkDevice = dxvkAdapter->createDevice(dxvkInstance, deviceFeatures);
+-
+       Com<D3D11DXGIDevice> device = new D3D11DXGIDevice(
+-        pAdapter, nullptr, nullptr,
+-        dxvkInstance, dxvkAdapter, dxvkDevice,
+-        devFeatureLevel, Flags);
++        pAdapter, dxvkInstance, dxvkAdapter, devFeatureLevel, Flags);
+ 
+       return device->QueryInterface(
+         __uuidof(ID3D11Device),
+@@ -263,169 +258,12 @@ extern "C" {
+           ID3D11Device**        ppDevice,
+           ID3D11DeviceContext** ppImmediateContext,
+           D3D_FEATURE_LEVEL*    pChosenFeatureLevel) {
+-    InitReturnPtr(ppDevice);
+-    InitReturnPtr(ppImmediateContext);
+-
+-    if (pChosenFeatureLevel)
+-      *pChosenFeatureLevel = D3D_FEATURE_LEVEL(0);
+-
+-    if (!pDevice)
+-      return E_INVALIDARG;
+-
+-    // Figure out D3D12 objects
+-    Com<ID3D12Device> d3d12Device;
+-    Com<ID3D12CommandQueue> d3d12Queue;
+-
+-    if (FAILED(pDevice->QueryInterface(__uuidof(ID3D12Device), reinterpret_cast<void**>(&d3d12Device)))) {
+-      Logger::err("D3D11On12CreateDevice: Device is not a valid D3D12 device");
+-      return E_INVALIDARG;
+-    }
+-
+-    if (NodeMask & (NodeMask - 1)) {
+-      Logger::err("D3D11On12CreateDevice: Invalid node mask");
+-      return E_INVALIDARG;
+-    }
+-
+-    if (!NumQueues || !ppCommandQueues || !ppCommandQueues[0]) {
+-      Logger::err("D3D11On12CreateDevice: No command queue specified");
+-      return E_INVALIDARG;
+-    }
+-
+-    if (NumQueues > 1) {
+-      // Not sure what to do with more than one graphics queue
+-      Logger::warn("D3D11On12CreateDevice: Only one queue supported");
+-    }
+-
+-    if (FAILED(ppCommandQueues[0]->QueryInterface(__uuidof(ID3D12CommandQueue), reinterpret_cast<void**>(&d3d12Queue)))) {
+-      Logger::err("D3D11On12CreateDevice: Queue is not a valid D3D12 command queue");
+-      return E_INVALIDARG;
+-    }
+-
+-    // Determine feature level for the D3D11 device
+-    std::array<D3D_FEATURE_LEVEL, 4> defaultFeatureLevels = {{
+-      D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_11_1,
+-      D3D_FEATURE_LEVEL_12_0, D3D_FEATURE_LEVEL_12_1,
+-    }};
+-
+-    D3D12_FEATURE_DATA_FEATURE_LEVELS featureLevel = { };
+-
+-    if (!FeatureLevels || !pFeatureLevels) {
+-      featureLevel.NumFeatureLevels = defaultFeatureLevels.size();
+-      featureLevel.pFeatureLevelsRequested = defaultFeatureLevels.data();
+-    } else {
+-      featureLevel.NumFeatureLevels = FeatureLevels;
+-      featureLevel.pFeatureLevelsRequested = pFeatureLevels;
+-    }
+-
+-    HRESULT hr = d3d12Device->CheckFeatureSupport(D3D12_FEATURE_FEATURE_LEVELS, &featureLevel, sizeof(featureLevel));
+-
+-    if (FAILED(hr) || !featureLevel.MaxSupportedFeatureLevel) {
+-      Logger::err(str::format("D3D11On12CreateDevice: Minimum required feature level not supported"));
+-      return hr;
+-    }
+-
+-    Logger::info(str::format("D3D11On12CreateDevice: Chosen feature level: ", featureLevel.MaxSupportedFeatureLevel));
+-
+-    Com<ID3D12DXVKInteropDevice> interopDevice;
+-
+-    if (FAILED(d3d12Device->QueryInterface(__uuidof(ID3D12DXVKInteropDevice), reinterpret_cast<void**>(&interopDevice)))) {
+-      Logger::err("D3D11On12CreateDevice: Device not a vkd3d-proton device.");
+-      return E_INVALIDARG;
+-    }
++    static bool s_errorShown = false;
+ 
+-    Com<IDXGIAdapter> dxgiAdapter;
++    if (!std::exchange(s_errorShown, true))
++      Logger::err("D3D11On12CreateDevice: Not implemented");
+ 
+-    if (FAILED(interopDevice->GetDXGIAdapter(IID_PPV_ARGS(&dxgiAdapter)))) {
+-      Logger::err("D3D11On12CreateDevice: Failed to query DXGI adapter.");
+-      return E_INVALIDARG;
+-    }
+-
+-    try {
+-      // Initialize DXVK instance
+-      DxvkInstanceImportInfo instanceInfo = { };
+-      DxvkDeviceImportInfo deviceInfo = { };
+-      VkPhysicalDevice vulkanAdapter = VK_NULL_HANDLE;
+-
+-      interopDevice->GetVulkanHandles(&instanceInfo.instance, &vulkanAdapter, &deviceInfo.device);
+-
+-      uint32_t instanceExtensionCount = 0;
+-      interopDevice->GetInstanceExtensions(&instanceExtensionCount, nullptr);
+-
+-      std::vector<const char*> instanceExtensions(instanceExtensionCount);
+-      interopDevice->GetInstanceExtensions(&instanceExtensionCount, instanceExtensions.data());
+-
+-      instanceInfo.extensionCount = instanceExtensions.size();
+-      instanceInfo.extensionNames = instanceExtensions.data();
+-
+-      Rc<DxvkInstance> dxvkInstance = new DxvkInstance(instanceInfo);
+-
+-      // Find adapter by physical device handle
+-      Rc<DxvkAdapter> dxvkAdapter;
+-
+-      for (uint32_t i = 0; i < dxvkInstance->adapterCount(); i++) {
+-        Rc<DxvkAdapter> curr = dxvkInstance->enumAdapters(i);
+-
+-        if (curr->handle() == vulkanAdapter)
+-          dxvkAdapter = std::move(curr);
+-      }
+-
+-      if (dxvkAdapter == nullptr) {
+-        Logger::err("D3D11On12CreateDevice: No matching adapter found");
+-        return E_INVALIDARG;
+-      }
+-
+-      interopDevice->GetVulkanQueueInfo(d3d12Queue.ptr(), &deviceInfo.queue, &deviceInfo.queueFamily);
+-      interopDevice->GetDeviceFeatures(&deviceInfo.features);
+-
+-      uint32_t deviceExtensionCount = 0;
+-      interopDevice->GetDeviceExtensions(&deviceExtensionCount, nullptr);
+-
+-      std::vector<const char*> deviceExtensions(deviceExtensionCount);
+-      interopDevice->GetDeviceExtensions(&deviceExtensionCount, deviceExtensions.data());
+-
+-      deviceInfo.extensionCount = deviceExtensions.size();
+-      deviceInfo.extensionNames = deviceExtensions.data();
+-
+-      deviceInfo.queueCallback = [
+-        cDevice = interopDevice,
+-        cQueue = d3d12Queue
+-      ] (bool doLock) {
+-        HRESULT hr = doLock
+-          ? cDevice->LockCommandQueue(cQueue.ptr())
+-          : cDevice->UnlockCommandQueue(cQueue.ptr());
+-
+-        if (FAILED(hr))
+-          Logger::err(str::format("Failed to lock vkd3d-proton device queue: ", hr));
+-      };
+-
+-      Rc<DxvkDevice> dxvkDevice = dxvkAdapter->importDevice(dxvkInstance, deviceInfo);
+-
+-      // Create and return the actual D3D11 device
+-      Com<D3D11DXGIDevice> device = new D3D11DXGIDevice(
+-        dxgiAdapter.ptr(), d3d12Device.ptr(), d3d12Queue.ptr(),
+-        dxvkInstance, dxvkAdapter, dxvkDevice,
+-        featureLevel.MaxSupportedFeatureLevel, Flags);
+-
+-      Com<ID3D11Device> d3d11Device;
+-      device->QueryInterface(__uuidof(ID3D11Device), reinterpret_cast<void**>(&d3d11Device));
+-
+-      if (ppDevice)
+-        *ppDevice = d3d11Device.ref();
+-
+-      if (ppImmediateContext)
+-        d3d11Device->GetImmediateContext(ppImmediateContext);
+-
+-      if (pChosenFeatureLevel)
+-        *pChosenFeatureLevel = d3d11Device->GetFeatureLevel();
+-
+-      if (!ppDevice && !ppImmediateContext)
+-        return S_FALSE;
+-
+-      return S_OK;
+-    } catch (const DxvkError& e) {
+-      Logger::err("D3D11On12CreateDevice: Failed to create D3D11 device");
+-      return E_FAIL;
+-    }
++    return E_NOTIMPL;
+   }
+ 
+ }
+\ No newline at end of file
+diff --git a/src/d3d11/d3d11_on_12.cpp b/src/d3d11/d3d11_on_12.cpp
+deleted file mode 100644
+index 7393021..0000000
+--- a/src/d3d11/d3d11_on_12.cpp
++++ /dev/null
+@@ -1,150 +0,0 @@
+-#include "d3d11_context_imm.h"
+-#include "d3d11_device.h"
+-#include "d3d11_on_12.h"
+-
+-namespace dxvk {
+-
+-  D3D11on12Device::D3D11on12Device(
+-          D3D11DXGIDevice*        pContainer,
+-          D3D11Device*            pDevice,
+-          ID3D12Device*           pD3D12Device,
+-          ID3D12CommandQueue*     pD3D12Queue)
+-  : m_container   (pContainer),
+-    m_device      (pDevice),
+-    m_d3d12Device (pD3D12Device),
+-    m_d3d12Queue  (pD3D12Queue) {
+-
+-  }
+-
+-
+-  D3D11on12Device::~D3D11on12Device() {
+-
+-  }
+-
+-
+-  ULONG STDMETHODCALLTYPE D3D11on12Device::AddRef() {
+-    return m_container->AddRef();
+-  }
+-  
+-
+-  ULONG STDMETHODCALLTYPE D3D11on12Device::Release() {
+-    return m_container->Release();
+-  }
+-  
+-
+-  HRESULT STDMETHODCALLTYPE D3D11on12Device::QueryInterface(
+-          REFIID                  riid,
+-          void**                  ppvObject) {
+-    return m_container->QueryInterface(riid, ppvObject);
+-  }
+-
+-
+-  HRESULT STDMETHODCALLTYPE D3D11on12Device::CreateWrappedResource(
+-          IUnknown*               pResource12,
+-    const D3D11_RESOURCE_FLAGS*   pResourceFlags,
+-          D3D12_RESOURCE_STATES   InputState,
+-          D3D12_RESOURCE_STATES   OutputState,
+-          REFIID                  riid,
+-          void**                  ppResource11) {
+-    Com<ID3D12DXVKInteropDevice> interopDevice;
+-    m_d3d12Device->QueryInterface(__uuidof(ID3D12DXVKInteropDevice), reinterpret_cast<void**>(&interopDevice));
+-
+-    D3D11_ON_12_RESOURCE_INFO info = { };
+-    info.InputState = InputState;
+-    info.OutputState = OutputState;
+-    info.IsWrappedResource = TRUE;
+-
+-    // 11on12 technically allows importing D3D12 heaps as tile pools,
+-    // but we don't support importing sparse resources at this time.
+-    if (FAILED(pResource12->QueryInterface(__uuidof(ID3D12Resource), reinterpret_cast<void**>(&info.Resource)))) {
+-      Logger::err("D3D11on12Device::CreateWrappedResource: Resource not a valid D3D12 resource");
+-      return E_INVALIDARG;
+-    }
+-
+-    // Query Vulkan resource handle and buffer offset as necessary
+-    if (FAILED(interopDevice->GetVulkanResourceInfo(info.Resource.ptr(), &info.VulkanHandle, &info.VulkanOffset))) {
+-      Logger::err("D3D11on12Device::CreateWrappedResource: Failed to retrieve Vulkan resource info");
+-      return E_INVALIDARG;
+-    }
+-
+-    Com<ID3D11Resource> resource;
+-    D3D12_RESOURCE_DESC desc = info.Resource->GetDesc();
+-
+-    if (desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER) {
+-      D3D11_BUFFER_DESC bufferDesc;
+-
+-      if (FAILED(D3D11Buffer::GetDescFromD3D12(info.Resource.ptr(), pResourceFlags, &bufferDesc)))
+-        return E_INVALIDARG;
+-
+-      resource = new D3D11Buffer(m_device, &bufferDesc, &info);
+-    } else {
+-      D3D11_COMMON_TEXTURE_DESC textureDesc;
+-
+-      if (FAILED(D3D11CommonTexture::GetDescFromD3D12(info.Resource.ptr(), pResourceFlags, &textureDesc)))
+-        return E_INVALIDARG;
+-
+-      switch (desc.Dimension) {
+-        case D3D12_RESOURCE_DIMENSION_TEXTURE1D:
+-          resource = new D3D11Texture1D(m_device, &textureDesc, &info);
+-          break;
+-
+-        case D3D12_RESOURCE_DIMENSION_TEXTURE2D:
+-          resource = new D3D11Texture2D(m_device, &textureDesc, &info, nullptr);
+-          break;
+-
+-        case D3D12_RESOURCE_DIMENSION_TEXTURE3D:
+-          resource = new D3D11Texture3D(m_device, &textureDesc, &info);
+-          break;
+-
+-        default:
+-          Logger::err("D3D11on12Device::CreateWrappedResource: Unhandled resource dimension");
+-          return E_INVALIDARG;
+-      }
+-    }
+-
+-    return resource->QueryInterface(riid, ppResource11);
+-  }
+-
+-
+-  void STDMETHODCALLTYPE D3D11on12Device::ReleaseWrappedResources(
+-          ID3D11Resource* const*  ppResources,
+-          UINT                    ResourceCount) {
+-    Com<ID3D12DXVKInteropDevice> interopDevice;
+-    m_d3d12Device->QueryInterface(__uuidof(ID3D12DXVKInteropDevice), reinterpret_cast<void**>(&interopDevice));
+-
+-    for (uint32_t i = 0; i < ResourceCount; i++) {
+-      D3D11_ON_12_RESOURCE_INFO info;
+-
+-      if (FAILED(GetResource11on12Info(ppResources[i], &info)) || !info.IsWrappedResource) {
+-        Logger::warn("D3D11on12Device::ReleaseWrappedResources: Resource not a wrapped resource, skipping");
+-        continue;
+-      }
+-
+-      VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
+-      interopDevice->GetVulkanImageLayout(info.Resource.ptr(), info.OutputState, &layout);
+-      m_device->GetContext()->Release11on12Resource(ppResources[i], layout);
+-    }
+-  }
+-
+-
+-  void STDMETHODCALLTYPE D3D11on12Device::AcquireWrappedResources(
+-          ID3D11Resource* const*  ppResources,
+-          UINT                    ResourceCount) {
+-    Com<ID3D12DXVKInteropDevice> interopDevice;
+-    m_d3d12Device->QueryInterface(__uuidof(ID3D12DXVKInteropDevice), reinterpret_cast<void**>(&interopDevice));
+-
+-    for (uint32_t i = 0; i < ResourceCount; i++) {
+-      D3D11_ON_12_RESOURCE_INFO info;
+-
+-      if (FAILED(GetResource11on12Info(ppResources[i], &info)) || !info.IsWrappedResource) {
+-        Logger::warn("D3D11on12Device::AcquireWrappedResources: Resource not a wrapped resource, skipping");
+-        continue;
+-      }
+-
+-      VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
+-      interopDevice->GetVulkanImageLayout(info.Resource.ptr(), info.InputState, &layout);
+-      m_device->GetContext()->Acquire11on12Resource(ppResources[i], layout);
+-    }
+-  }
+-
+-}
+diff --git a/src/d3d11/d3d11_on_12.h b/src/d3d11/d3d11_on_12.h
+deleted file mode 100644
+index 9620662..0000000
+--- a/src/d3d11/d3d11_on_12.h
++++ /dev/null
+@@ -1,75 +0,0 @@
+-#pragma once
+-
+-#include "d3d11_on_12_interfaces.h"
+-
+-#include "../util/log/log.h"
+-
+-namespace dxvk {
+-
+-  class D3D11Device;
+-  class D3D11DXGIDevice;
+-
+-  /**
+-   * \brief Resource info for 11on12 resources
+-   */
+-  struct D3D11_ON_12_RESOURCE_INFO {
+-    Com<ID3D12Resource> Resource;
+-    UINT64 VulkanHandle = 0;
+-    UINT64 VulkanOffset = 0;
+-    BOOL IsWrappedResource = FALSE;
+-    D3D12_RESOURCE_STATES InputState = D3D12_RESOURCE_STATE_COMMON;
+-    D3D12_RESOURCE_STATES OutputState = D3D12_RESOURCE_STATE_COMMON;
+-  };
+-
+-
+-  class D3D11on12Device : public ID3D11On12Device {
+-
+-  public:
+-
+-    D3D11on12Device(
+-            D3D11DXGIDevice*        pContainer,
+-            D3D11Device*            pDevice,
+-            ID3D12Device*           pD3D12Device,
+-            ID3D12CommandQueue*     pD3D12Queue);
+-
+-    ~D3D11on12Device();
+-
+-    ULONG STDMETHODCALLTYPE AddRef();
+-    
+-    ULONG STDMETHODCALLTYPE Release();
+-    
+-    HRESULT STDMETHODCALLTYPE QueryInterface(
+-            REFIID                  riid,
+-            void**                  ppvObject);
+-
+-    HRESULT STDMETHODCALLTYPE CreateWrappedResource(
+-            IUnknown*               pResource12,
+-      const D3D11_RESOURCE_FLAGS*   pResourceFlags,
+-            D3D12_RESOURCE_STATES   InputState,
+-            D3D12_RESOURCE_STATES   OutputState,
+-            REFIID                  riid,
+-            void**                  ppResource11);
+-
+-    void STDMETHODCALLTYPE ReleaseWrappedResources(
+-            ID3D11Resource* const*  ppResources,
+-            UINT                    ResourceCount);
+-
+-    void STDMETHODCALLTYPE AcquireWrappedResources(
+-            ID3D11Resource* const*  ppResources,
+-            UINT                    ResourceCount);
+-
+-    bool Is11on12Device() const {
+-      return m_d3d12Device != nullptr;
+-    }
+-
+-  private:
+-
+-    D3D11DXGIDevice*        m_container;
+-    D3D11Device*            m_device;
+-
+-    Com<ID3D12Device>       m_d3d12Device;
+-    Com<ID3D12CommandQueue> m_d3d12Queue;
+-
+-  };
+-
+-}
+diff --git a/src/d3d11/d3d11_on_12_interfaces.h b/src/d3d11/d3d11_on_12_interfaces.h
+deleted file mode 100644
+index 2ec22e0..0000000
+--- a/src/d3d11/d3d11_on_12_interfaces.h
++++ /dev/null
+@@ -1,56 +0,0 @@
+-#pragma once
+-
+-#include "../vulkan/vulkan_loader.h"
+-
+-#include <d3d11on12.h>
+-
+-MIDL_INTERFACE("39da4e09-bd1c-4198-9fae-86bbe3be41fd")
+-ID3D12DXVKInteropDevice : public IUnknown {
+-  virtual HRESULT STDMETHODCALLTYPE GetDXGIAdapter(
+-          REFIID                      iid,
+-          void**                      ppvObject) = 0;
+-
+-  virtual HRESULT STDMETHODCALLTYPE GetInstanceExtensions(
+-          UINT*                       pExtensionCount,
+-    const char**                      ppExtensions) = 0;
+-
+-  virtual HRESULT STDMETHODCALLTYPE GetDeviceExtensions(
+-          UINT*                       pExtensionCount,
+-    const char**                      ppExtensions) = 0;
+-
+-  virtual HRESULT STDMETHODCALLTYPE GetDeviceFeatures(
+-    const VkPhysicalDeviceFeatures2** ppFeatures) = 0;
+-
+-  virtual HRESULT STDMETHODCALLTYPE GetVulkanHandles(
+-          VkInstance*                 pVkInstance,
+-          VkPhysicalDevice*           pVkPhysicalDevice,
+-          VkDevice*                   pVkDevice) = 0;
+-
+-  virtual HRESULT STDMETHODCALLTYPE GetVulkanQueueInfo(
+-          ID3D12CommandQueue*         pCommandQueue,
+-          VkQueue*                    pVkQueue,
+-          UINT32*                     pVkQueueFamily) = 0;
+-
+-  virtual void STDMETHODCALLTYPE GetVulkanImageLayout(
+-          ID3D12Resource*             pResource,
+-          D3D12_RESOURCE_STATES       State,
+-          VkImageLayout*              pVkLayout) = 0;
+-
+-  virtual HRESULT STDMETHODCALLTYPE GetVulkanResourceInfo(
+-          ID3D12Resource*             pResource,
+-          UINT64*                     pVkHandle,
+-          UINT64*                     pBufferOffset) = 0;
+-
+-  virtual HRESULT STDMETHODCALLTYPE LockCommandQueue(
+-          ID3D12CommandQueue*         pCommandQueue) = 0;
+-
+-  virtual HRESULT STDMETHODCALLTYPE UnlockCommandQueue(
+-          ID3D12CommandQueue*         pCommandQueue) = 0;
+-
+-};
+-
+-#ifdef _MSC_VER
+-struct __declspec(uuid("39da4e09-bd1c-4198-9fae-86bbe3be41fd")) ID3D12DXVKInteropDevice;
+-#else
+-__CRT_UUID_DECL(ID3D12DXVKInteropDevice, 0x39da4e09, 0xbd1c, 0x4198, 0x9f,0xae, 0x86,0xbb,0xe3,0xbe,0x41,0xfd)
+-#endif
+diff --git a/src/d3d11/meson.build b/src/d3d11/meson.build
+index 4b71df3..ea51a9d 100644
+--- a/src/d3d11/meson.build
++++ b/src/d3d11/meson.build
+@@ -42,7 +42,6 @@ d3d11_src = [
+   'd3d11_input_layout.cpp',
+   'd3d11_interop.cpp',
+   'd3d11_main.cpp',
+-  'd3d11_on_12.cpp',
+   'd3d11_options.cpp',
+   'd3d11_query.cpp',
+   'd3d11_rasterizer.cpp',
+-- 
+2.35.3
+
