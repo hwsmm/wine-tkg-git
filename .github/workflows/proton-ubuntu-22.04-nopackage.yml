@@ -9,19 +9,21 @@ jobs:
     container: ubuntu:22.04
 
     steps:
-      - uses: actions-rs/toolchain@v1
-        name: Install rust
-        with:
-          toolchain: stable
-      - uses: actions/checkout@v2
-      - name: Compile
+      - name: Install some dependencies
         run: |
           sed -i 's|archive.ubuntu.com|azure.archive.ubuntu.com|g' /etc/apt/sources.list
           dpkg --add-architecture i386
           apt-get -y update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata build-essential sudo cmake python3-pip
+          DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata build-essential sudo cmake python3-pip wget curl
           yes|pip3 install meson --exists-action i
-          rustup target add i686-unknown-linux-gnu
+      - uses: actions-rs/toolchain@v1
+        name: Install rust
+        with:
+          toolchain: stable
+          target: i686-unknown-linux-gnu
+      - uses: actions/checkout@v2
+      - name: Compile
+        run: |
           useradd user -G sudo && echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
           chown user -R ..
           chown user -R /tmp
