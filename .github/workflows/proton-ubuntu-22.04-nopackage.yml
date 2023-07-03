@@ -9,6 +9,8 @@ jobs:
     container: ubuntu:22.04
 
     steps:
+      - uses: actions-rs/toolchain@v1
+        name: Install rust
       - uses: actions/checkout@v2
       - name: Compile
         run: |
@@ -17,6 +19,7 @@ jobs:
           apt-get -y update
           DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata build-essential sudo cmake python3-pip
           yes|pip3 install meson --exists-action i
+          rustup target add i686-unknown-linux-gnu
           useradd user -G sudo && echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
           chown user -R ..
           chown user -R /tmp
