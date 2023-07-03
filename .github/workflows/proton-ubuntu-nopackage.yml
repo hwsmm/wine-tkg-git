@@ -14,8 +14,6 @@ jobs:
           sudo dpkg --add-architecture i386
           sudo apt update
           sudo apt install build-essential
-          chown user -R ..
-          chown user -R /tmp
           export CARGO_HOME="$PWD"
           rustup target add i686-unknown-linux-gnu
           cd proton-tkg
