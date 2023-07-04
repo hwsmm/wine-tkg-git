@@ -1,0 +1,48 @@
+name: Proton Valve xbe nopackage Ubuntu CI
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: ubuntu:22.04
+
+    steps:
+      - name: Install some dependencies
+        run: |
+          sed -i 's|archive.ubuntu.com|azure.archive.ubuntu.com|g' /etc/apt/sources.list
+          dpkg --add-architecture i386
+          apt-get -y update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata build-essential sudo python3-pip wget curl ninja-build python3 python3-pkg-resources python3-distutils
+          yes|pip3 install meson --exists-action i
+      - uses: actions-rs/toolchain@v1
+        name: Install rust
+        with:
+          toolchain: stable
+          target: i686-unknown-linux-gnu
+      - uses: actions/checkout@v2
+      - name: Compile
+        run: |
+          sed -i 's/rustc//g' wine-tkg-git/wine-tkg-scripts/deps
+          sed -i 's/cargo//g' wine-tkg-git/wine-tkg-scripts/deps
+          sed -i 's/meson//g' wine-tkg-git/wine-tkg-scripts/deps
+          useradd user -G sudo && echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          chown user -R ..
+          chown user -R /tmp
+          export CARGO_HOME="$PWD"
+          cd proton-tkg
+          sed -i 's/distro=""/distro="debuntu"/' proton-tkg.cfg
+          sed -i 's/uninstaller="false"/uninstaller="true"/' proton-tkg.cfg
+          sed -i 's/autoinstall="false"/autoinstall="true"/' proton-tkg.cfg
+          sed -i 's/build_gstreamer="false"/build_gstreamer="true"/' proton-tkg.cfg
+          sed -i 's/lib32_gstreamer="false"/lib32_gstreamer="true"/' proton-tkg.cfg
+          sed -i 's/_use_dxvk="git"/_use_dxvk="release"/' proton-tkg.cfg
+          echo '_ci_build="true"' >> proton-tkg.cfg
+          touch tarplz
+          yes|./proton-tkg.sh
+      - name: Archive the artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: proton-tkg-build
+          path: proton-tkg/built/*.tar
