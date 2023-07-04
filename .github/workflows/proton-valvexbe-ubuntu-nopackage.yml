@@ -1,4 +1,4 @@
-name: Proton Valve xbe nopackage Ubuntu 22.04 container CI
+name: Proton Valve xbe nopackage Ubuntu CI
 
 on:
   workflow_dispatch:
