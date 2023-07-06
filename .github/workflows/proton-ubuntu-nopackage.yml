@@ -1,4 +1,4 @@
-name: Proton Valve xbe nopackage Ubuntu CI
+name: Proton Valve xbe nopackage Ubuntu CI (broken)
 
 on:
   workflow_dispatch:
