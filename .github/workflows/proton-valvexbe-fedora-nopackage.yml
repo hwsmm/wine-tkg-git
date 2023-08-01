@@ -12,6 +12,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Compile
         run: |
+          sudo dnf -y upgrade --refresh
           export CARGO_HOME="$PWD"
           cd proton-tkg
           sed -i 's/distro=""/distro="fedora"/' proton-tkg.cfg
