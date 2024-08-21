@@ -1,0 +1,69 @@
+diff --git a/dlls/mmdevapi/client.c b/dlls/mmdevapi/client.c
+index 860c31f..37f634a 100644
+--- a/dlls/mmdevapi/client.c
++++ b/dlls/mmdevapi/client.c
+@@ -105,7 +105,6 @@ static inline struct audio_client *impl_from_IAudioStreamVolume(IAudioStreamVolu
+ static HRESULT get_periods(struct audio_client *client,
+                            REFERENCE_TIME *def_period, REFERENCE_TIME *min_period)
+ {
+-    static const REFERENCE_TIME min_def_period = 100000; /* 10 ms */
+     struct get_device_period_params params;
+ 
+     params.device     = client->device_name;
+@@ -115,8 +114,6 @@ static HRESULT get_periods(struct audio_client *client,
+ 
+     wine_unix_call(get_device_period, &params);
+ 
+-    if (def_period) *def_period = max(*def_period, min_def_period);
+-
+     return params.result;
+ }
+ 
+diff --git a/dlls/winealsa.drv/alsa.c b/dlls/winealsa.drv/alsa.c
+index 970db59..64a3b44 100644
+--- a/dlls/winealsa.drv/alsa.c
++++ b/dlls/winealsa.drv/alsa.c
+@@ -23,6 +23,7 @@
+ 
+ #include "config.h"
+ 
++#include <stdlib.h>
+ #include <stdarg.h>
+ #include <stdio.h>
+ #include <pthread.h>
+@@ -84,8 +85,8 @@ struct alsa_stream
+ 
+ #define EXTRA_SAFE_RT 40000
+ 
+-static const REFERENCE_TIME def_period = 100000;
+-static const REFERENCE_TIME min_period = 50000;
++static REFERENCE_TIME def_period = 100000;
++static REFERENCE_TIME min_period = 50000;
+ 
+ static const WCHAR drv_keyW[] = {'S','o','f','t','w','a','r','e','\\',
+     'W','i','n','e','\\','D','r','i','v','e','r','s','\\',
+@@ -2931,6 +2932,15 @@ static NTSTATUS alsa_wow64_get_prop_value(void *args)
+     return STATUS_SUCCESS;
+ }
+ 
++static NTSTATUS alsa_test_connect(void *args)
++{
++    char *period_env = getenv("STAGING_AUDIO_PERIOD");
++    if (period_env)
++        def_period = min_period = atoi(period_env);
++
++    return STATUS_SUCCESS;
++}
++
+ const unixlib_entry_t __wine_unix_call_wow64_funcs[] =
+ {
+     alsa_process_attach,
+@@ -2959,7 +2969,7 @@ const unixlib_entry_t __wine_unix_call_wow64_funcs[] =
+     alsa_wow64_get_position,
+     alsa_wow64_set_volumes,
+     alsa_wow64_set_event_handle,
+-    alsa_not_implemented,
++    alsa_test_connect,
+     alsa_is_started,
+     alsa_wow64_get_prop_value,
+     alsa_not_implemented,
