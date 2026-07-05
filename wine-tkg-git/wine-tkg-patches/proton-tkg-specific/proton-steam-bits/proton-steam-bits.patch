@@ -11,46 +11,46 @@ diff --git a/loader/wine.inf.in b/loader/wine.inf.in
 index 5f9f61e2535..43cae2a2bc2 100644
 --- a/loader/wine.inf.in
 +++ b/loader/wine.inf.in
-@@ -96,7 +97,8 @@ AddReg=\
-     Tapi,\
-     ThemeManager,\
-     VersionInfo,\
--    LicenseInformation
-+    LicenseInformation, \
+@@ -70,7 +70,8 @@ AddReg=\
+     Printing,\
+     Services, \
+     SessionMgr,\
+-    ThemeManager
++    ThemeManager, \
 +    SteamClient
  
- [DefaultInstall.ntamd64]
- RegisterDlls=RegisterDllsSection
-@@ -122,7 +124,8 @@ AddReg=\
-     Tapi,\
-     ThemeManager,\
-     VersionInfo,\
--    LicenseInformation
+ [DefaultInstall]
+ Needs=BaseInstall
+@@ -97,7 +97,8 @@ AddReg=\
+ AddReg=\
+     CurrentVersionWow64.ntamd64,\
+     VCRuntime.ntamd64,\
+-    VersionInfo
 +    LicenseInformation, \
 +    SteamClient.ntamd64
  
  [DefaultInstall.ntarm64]
- RegisterDlls=RegisterDllsSection
-@@ -148,7 +150,8 @@ AddReg=\
-     Tapi,\
-     ThemeManager,\
-     VersionInfo,\
--    LicenseInformation
-+    LicenseInformation, \
-+    SteamClient.ntamd64
-
- [Wow64Install]
- RegisterDlls=RegisterDllsSection
-@@ -164,7 +166,8 @@ AddReg=\
+ Needs=BaseInstall
+@@ -119,7 +119,8 @@ AddReg=\
+     MCI,\
      Misc,\
-     Tapi,\
-     VersionInfo,\
--    LicenseInformation
-+    LicenseInformation, \
+     Packages.wow64,\
+-    VersionInfo
++    VersionInfo, \
++    SteamClient.ntamd64
+ 
+ [Wow64Install.ntx86]
+ Needs=BaseWow64Install
+@@ -126,7 +126,8 @@ AddReg=\
+ AddReg=\
+     CurrentVersionWow64.ntx86,\
+     VCRuntime.ntamd64,\
+-    VCRuntime.ntx86
++    VCRuntime.ntx86, \
 +    SteamClient
-
-
- [DefaultInstall.Services]
+ 
+ [Wow64Install.ntarm]
+ Needs=BaseWow64Install
 @@ -3867,6 +3870,22 @@ l_intl.nls
  winehid.inf,"@%12%\winehid.sys,-1"
  wineusb.inf,"@%12%\wineusb.sys,-1"
@@ -186,11 +186,11 @@ index f08474b3635..2f637f25537 100644
 --- a/dlls/shell32/shellpath.c
 +++ b/dlls/shell32/shellpath.c
 @@ -4369,7 +4369,7 @@ static void _SHCreateMyDocumentsSymbolicLink(const UINT * aidsMyStuff, const UIN
-
      /* create symbolic links rather than directories for specific
       * user shell folders */
--    _SHCreateSymbolicLink(folder, szBuildPath);
-+    // _SHCreateSymbolicLink(folder, szBuildPath);
+     if (!pszSubPath)
+-        _SHCreateSymbolicLink(folder, szBuildPath);
++    //  _SHCreateSymbolicLink(folder, szBuildPath);
 
      /* create directory/directories */
      ret = SHCreateDirectoryExW(hwndOwner, szBuildPath, NULL);
@@ -250,28 +250,6 @@ index df2b43d9106..44ce3cd6639 100644
  [MCI]
  HKLM,%Mci32Str%,"AVIVideo",,"mciavi32.dll"
 
-From 12b7edaf69d1f9c94c18bd4cd8ae0e1d5ae97972 Mon Sep 17 00:00:00 2001
-From: Andrew Eikum <aeikum@codeweavers.com>
-Date: Tue, 15 Jan 2019 10:10:47 -0600
-Subject: [PATCH] ntdll: Don't pass SDL_AUDIODRIVER from Linux environment
-
----
- dlls/ntdll/unix/env.c | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/dlls/ntdll/unix/env.c b/dlls/ntdll/unix/env.c
-index 74cea11be5f..50bc2321eaa 100644
---- a/dlls/ntdll/unix/env.c
-+++ b/dlls/ntdll/unix/env.c
-@@ -341,6 +341,7 @@ static BOOL is_special_env_var( const char *var )
-             STARTS_WITH( var, "TEMP=" ) ||
-             STARTS_WITH( var, "TMP=" ) ||
-             STARTS_WITH( var, "QT_" ) ||
-+            STARTS_WITH( var, "SDL_AUDIODRIVER=" ) ||
-             STARTS_WITH( var, "VK_" ) ||
-             STARTS_WITH( var, "XDG_SESSION_TYPE=" ));
- }
- 
 From 17d19e1b23bce6fc6ff5b4e61131c9c58fd57ae5 Mon Sep 17 00:00:00 2001
 From: Andrew Eikum <aeikum@codeweavers.com>
 Date: Wed, 28 Mar 2018 09:21:41 -0500
@@ -324,9 +302,9 @@ index 2b049eb91f8..e6948a73427 100644
  
  [Services]
 -HKLM,%CurrentVersion%\RunServices,"winemenubuilder",2,"%11%\winemenubuilder.exe -a -r"
+ HKLM,"System\CurrentControlSet\Services\Dnscache\Parameters",,16
  HKLM,"System\CurrentControlSet\Services\Eventlog\Application",,16
  HKLM,"System\CurrentControlSet\Services\Eventlog\System","Sources",0x10000,""
- HKLM,"System\CurrentControlSet\Services\Tcpip\Parameters","DataBasePath",2,"%11%\drivers"
 
 From ea8d4cc0a661d5588383baa2ed1a6c56d2e66ffc Mon Sep 17 00:00:00 2001
 From: Patryk Obara <dreamer.tan@gmail.com>
@@ -461,9 +439,9 @@ index b676bc8d955..e4e40bb487f 100644
 --- a/programs/winedbg/debugger.h
 +++ b/programs/winedbg/debugger.h
 @@ -283,6 +283,7 @@ extern	DWORD	                dbg_curr_tid;
- extern  dbg_ctx_t               dbg_context;
  extern  BOOL                    dbg_interactiveP;
  extern  HANDLE                  dbg_houtput;
+ extern  struct list             dbg_process_list;
 +extern  HANDLE                  dbg_crash_report_file;
 
  struct dbg_internal_var
@@ -547,9 +525,9 @@ index dab5fbd85a3..21391bcdcec 100644
  BOOL    	        dbg_interactiveP = FALSE;
  HANDLE                  dbg_houtput = 0;
 +HANDLE                  dbg_crash_report_file = INVALID_HANDLE_VALUE;
+ struct list             dbg_process_list = LIST_INIT(dbg_process_list);
 
- static struct list      dbg_process_list = LIST_INIT(dbg_process_list);
-
+ struct dbg_internal_var         dbg_internal_vars[DBG_IV_LAST];
 @@ -108,6 +109,8 @@ static void dbg_outputA(const char* buffer, int len)
              else break;
          }
@@ -697,15 +675,15 @@ index 39887d3d84e..f4e0d7f50f5 100644
 --- a/loader/wine.inf.in
 +++ b/loader/wine.inf.in
 @@ -74,7 +74,8 @@ AddReg=\
-     Timezones,\
-     VersionInfo,\
-     LicenseInformation, \
+     Services, \
+     SessionMgr,\
+     ThemeManager, \
 -    SteamClient
 +    SteamClient, \
 +    NVIDIANGX
  
- [DefaultInstall.ntamd64]
- RegisterDlls=RegisterDllsSection
+ [DefaultInstall]
+ Needs=BaseInstall
 @@ -102,7 +103,8 @@ AddReg=\
      Timezones,\
      VersionInfo,\
@@ -717,15 +695,15 @@ index 39887d3d84e..f4e0d7f50f5 100644
  [DefaultInstall.ntarm64]
  RegisterDlls=RegisterDllsSection
 @@ -145,7 +147,8 @@ AddReg=\
-     Tapi,\
-     VersionInfo,\
-     LicenseInformation, \
+     CurrentVersionWow64.ntx86,\
+     VCRuntime.ntamd64,\
+     VCRuntime.ntx86, \
 -    SteamClient
 +    SteamClient, \
 +    NVIDIANGX
  
- [Wow64Install.ntarm64]
- WineFakeDlls=FakeDllsWin32
+ [Wow64Install.ntarm]
+ Needs=BaseWow64Install
 @@ -4261,6 +4264,9 @@ HKCU,Software\Wine\DllOverrides,"ucrtbase",0x2,"native,builtin"
  HKCU,Software\Valve\Steam\ActiveProcess,"SteamClientDll64",,"%16426%\Steam\steamclient64.dll"
  HKCU,Software\Valve\Steam\ActiveProcess,"SteamPath",,"%16426%\Steam"

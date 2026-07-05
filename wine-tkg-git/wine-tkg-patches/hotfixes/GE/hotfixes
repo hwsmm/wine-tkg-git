@@ -12,13 +12,42 @@ _apply_GE_patch() {
 }
 
 _GE() {
-    msg2 "GE patches..."
-    _patchname="assettocorsa-hud.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/game-patches" _apply_GE_patch
-    #_patchname="mk11.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/game-patches" _apply_GE_patch
-    if [[ "$_plain_version" = *_8.0 ]] || [[ "$_plain_version" = *_9.0 ]]; then
+    msg2 "GE patches... If available"
+    if [[ "$_plain_version" = *_11.0 ]]; then
+      _patchname=""
+    elif [[ "$_plain_version" = *_10.0 ]]; then
+      if [[ "$_LOCAL_PRESET" = valve-exp-bleeding* ]]; then
+        _patchname="01-game-patch.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/GE-for-proton10" _apply_GE_patch
+        _patchname="02-wine-pending-patch-exp.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/GE-for-proton10/exp" _apply_GE_patch
+        _patchname="03-proton-ge-patch.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/GE-for-proton10" _apply_GE_patch
+        #_patchname="ge-wayland-be.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/GE-for-proton10/exp" _apply_GE_patch
+      elif [[ "$_LOCAL_PRESET" = valve-ex* ]]; then
+        _patchname="01-game-patch.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/GE-for-proton10" _apply_GE_patch
+        _patchname="02-wine-pending-patch-exp.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/GE-for-proton10/exp" _apply_GE_patch
+        _patchname="03-proton-ge-patch.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/GE-for-proton10" _apply_GE_patch
+        _patchname="04-dualsense-patch.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/GE-for-proton10" _apply_GE_patch
+        _patchname="ge-wayland-patch-exp.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/GE-for-proton10/exp" _apply_GE_patch
+      else
+        _patchname="01-game-patch.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/GE-for-proton10" _apply_GE_patch
+        _patchname="02-wine-pending-patch.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/GE-for-proton10" _apply_GE_patch
+        _patchname="03-proton-ge-patch.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/GE-for-proton10" _apply_GE_patch
+        _patchname="04-dualsense-patch.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/GE-for-proton10" _apply_GE_patch
+        _patchname="05-proton-ge-wayland-patch.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/GE-for-proton10" _apply_GE_patch
+      fi
+      msg2 "NTsync patches..."
+      _patchname="0161-ntdll-Add-some-traces-to-synchronization-methods.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/GE-for-proton10/proton-ntsync" _apply_GE_patch
+      _patchname="0162-ntdll-Add-stub-functions-for-in-process-synchronizat.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/GE-for-proton10/proton-ntsync" _apply_GE_patch
+      _patchname="0163-ntdll-Retrieve-and-cache-an-ntsync-device-in-wait-ca.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/GE-for-proton10/proton-ntsync" _apply_GE_patch
+      _patchname="0164-server-Add-an-object-operation-to-retrieve-an-in-pro.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/GE-for-proton10/proton-ntsync" _apply_GE_patch
+      _patchname="0165-ntsync-implementation.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/GE-for-proton10/proton-ntsync" _apply_GE_patch
+      _patchname="0166-Finish-up-ntsync-console-implementation.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/GE-for-proton10/proton-ntsync" _apply_GE_patch
+    elif [[ "$_plain_version" = *_8.0 ]] || [[ "$_plain_version" = *_9.0 ]]; then
+      _patchname="assettocorsa-hud.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/game-patches" _apply_GE_patch
+      _patchname="hotfix-guild_wars_2.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/game-patches" _apply_GE_patch
       _patchname="killer-instinct-winevulkan_fix-80.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/game-patches" _apply_GE_patch
       #_patchname="ealink_fixup.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/game-patches" _apply_GE_patch
-      _patchname="hotfix-guild_wars_2.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/game-patches" _apply_GE_patch
+      _patchname="support_for_DXGI_FORMAT_R8G8B8A8_UNORM.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/wine-hotfixes/upstream" _apply_GE_patch
+      #_patchname="mk11.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/game-patches" _apply_GE_patch
     else
       _patchname="killer-instinct-winevulkan_fix-70.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/game-patches" _apply_GE_patch
       _patchname="FFVII-and-SpecialK-powerprof.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/game-patches" _apply_GE_patch
@@ -39,8 +68,16 @@ _GE() {
       elif [[ "$_LOCAL_PRESET" = valve-exp* ]]; then
         _ge_subpath="/exp"
       fi
-      if [[ "$_plain_version" = *_9.0 ]]; then
-        _patchname="proton-fsr-90.mypatch" _patchpath="$_where/wine-tkg-patches/hotfixes/valve" _apply_GE_patch
+      if [[ "$_plain_version" = *_11.0 ]]; then
+        _patchname=""
+      elif [[ "$_plain_version" = *_10.0 ]]; then
+        _patchname="06-proton-ge-fshack-FSR-patch.patch" _patchpath="$_where/wine-tkg-patches/hotfixes/GE/GE-for-proton10" _apply_GE_patch
+      elif [[ "$_plain_version" = *_9.0 ]]; then
+        if [[ "$_LOCAL_PRESET" = valve-ex* ]]; then
+          _patchname="proton-fsr-90-expbe.mypatch" _patchpath="$_where/wine-tkg-patches/hotfixes/valve" _apply_GE_patch
+        else
+          _patchname="proton-fsr-90.mypatch" _patchpath="$_where/wine-tkg-patches/hotfixes/valve" _apply_GE_patch
+        fi
       elif [[ "$_plain_version" = *_8.0 ]]; then
         _patchname="proton-fsr-80.mypatch" _patchpath="$_where/wine-tkg-patches/hotfixes/valve" _apply_GE_patch
       else

@@ -1,5 +1,17 @@
 #!/bin/bash
 
+	# dcomp-DCompositionCreateDevice2 staging patchset breaks on some tests, disable until fixed
+	if [ "$_use_staging" = "true" ] && ( cd "${srcdir}"/"${_stgsrcdir}" && git merge-base --is-ancestor b70caa17726c3532b210a5ddf53af8024bc35b34 HEAD ); then
+		_staging_args+=(-W dcomp-DCompositionCreateDevice2)
+		echo "Revert staging patchset dcomp-DCompositionCreateDevice2 due to breakage" >> "$_where"/last_build_config.log
+	fi
+
+	# vkd3d-latest patchset has issues applying since e2390e2
+	if [ "$_use_staging" = "true" ] && ( cd "${srcdir}"/"${_stgsrcdir}" && git merge-base --is-ancestor 999c6a11d688ace3957cd3fa4afcff7057bf5375 HEAD && ! git merge-base --is-ancestor a877872a9a095930aed054ee50ed20abae87d04c HEAD); then
+		( cd "${srcdir}"/"${_stgsrcdir}" && _committorevert=e2390e2637df90c73b6e318d1fcf00b98e1ef380 nonuser_reverter && _committorevert=999c6a11d688ace3957cd3fa4afcff7057bf5375 nonuser_reverter )
+		echo "Revert staging e2390e2 and 999c6a1 which lead to failures" >> "$_where"/last_build_config.log
+	fi
+
 	# Disable odbc-remove-unixodbc breaking 32-bit builds on 14f63f40e7c87dc87ca1dc64aaa66f344bada4da+
 	if ( cd "${srcdir}"/"${_stgsrcdir}" && git merge-base --is-ancestor 14f63f40e7c87dc87ca1dc64aaa66f344bada4da HEAD && ! git merge-base --is-ancestor 9a246d19b3d91ee0240c91447e29d510671674a4 HEAD ); then
 		_staging_args+=(-W odbc-remove-unixodbc)
@@ -15,10 +27,12 @@
 	# Disable winex11-WM_WINDOWPOSCHANGING and winex11-_NET_ACTIVE_WINDOW patchsets on proton-tkg staging
 	#if ( cd "${srcdir}"/"${_winesrcdir}" && ! git merge-base --is-ancestor 0c249e6125fc9dc6ee86b4ef6ae0d9fa2fc6291b HEAD ); then
 	  if [ "$_EXTERNAL_INSTALL" = "proton" ] && [ "$_use_staging" = "true" ] || [ "$_proton_fs_hack" = "true" ]; then
-	    if ( cd "${srcdir}"/"${_stgsrcdir}" && git merge-base --is-ancestor 9c37968a298935a8c33aecdc0acdcb42170c7c6a HEAD ); then
-	      _staging_args+=(-W user32-alttab-focus)
-	    fi
-	    _staging_args+=(-W winex11-WM_WINDOWPOSCHANGING -W winex11-_NET_ACTIVE_WINDOW)
+	    # Disable for now to fix 1436
+	    #if ( cd "${srcdir}"/"${_stgsrcdir}" && git merge-base --is-ancestor 9c37968a298935a8c33aecdc0acdcb42170c7c6a HEAD ); then
+	      #_staging_args+=(-W user32-alttab-focus)
+	    #fi
+	    # Disable for now to fix 1428
+	    #_staging_args+=(-W winex11-WM_WINDOWPOSCHANGING -W winex11-_NET_ACTIVE_WINDOW)
 	    if ( cd "${srcdir}"/"${_stgsrcdir}" && git merge-base --is-ancestor 76f8eb15f17ff9ae52f6c2b61824978762d421ef HEAD ) && [ -e "${srcdir}/${_stgsrcdir}/patches/imm32-com-initialization/definition" ] && ! grep -Fxq 'Disabled: true' "${srcdir}/${_stgsrcdir}/patches/imm32-com-initialization/definition"; then
 	      _staging_args+=(-W imm32-com-initialization)
 	    fi

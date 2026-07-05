@@ -1068,7 +1068,7 @@ class CompatData:
                     wined3dfiles = []
 
                 #if the user asked for dxvk's dxgi (dxgi=n), then copy it into place
-                if use_wine_dxgi:
+                if use_wine_dxgi or use_wined3d:
                     wined3dfiles.append("dxgi")
                 else:
                     dxvkfiles.append("dxgi")
@@ -1501,6 +1501,8 @@ class Session:
             self.check_environment("PROTON_USE_WINED3D11", "wined3d11only")
             self.check_environment("PROTON_USE_WINED3D9", "wined3d9only")
 
+        self.check_environment("PROTON_ENABLE_WAYLAND", "enablewayland")
+        self.check_environment("PROTON_ENABLE_HDR", "enablehdr")
         self.check_environment("PROTON_USE_WINE_DXGI", "winedxgi")
         self.check_environment("PROTON_NO_D3D11", "nod3d11")
         self.check_environment("PROTON_NO_D3D10", "nod3d10")
@@ -1543,6 +1545,14 @@ class Session:
         elif "shadercachepath" in self.compat_config:
             self.env["MESA_SHADER_CACHE_DIR"] = self.env["PROTON_BYPASS_SHADERCACHE_PATH"] + "/" + os.environ["SteamGameId"]
 
+        if "enablewayland" in self.compat_config:
+            if self.env.get("WAYLAND_DISPLAY", False):
+                self.dlloverrides["winex11.drv"] = "d"
+                self.dlloverrides["winewayland.drv"] = "b"
+                self.env["WINE_WAYLAND_HACKS"] = "1"
+                if "enablehdr" in self.compat_config:
+                    self.env["DXVK_HDR"] = "1"
+
         if "noesync" in self.compat_config:
             self.env.pop("WINEESYNC", "")
         else:
@@ -1562,9 +1572,9 @@ class Session:
             self.env["WINEFSYNC_FUTEX2"] = "1"
 
         if "nontsync" in self.compat_config:
-            self.env.pop("WINE_DISABLE_FAST_SYNC", "1")
+            self.env.pop("WINENTSYNC", "0")
         else:
-            self.env["WINE_DISABLE_FAST_SYNC"] = "0"
+            self.env["WINENTSYNC"] = "1"
 
         if "seccomp" in self.compat_config:
             self.env["WINESECCOMP"] = "1"

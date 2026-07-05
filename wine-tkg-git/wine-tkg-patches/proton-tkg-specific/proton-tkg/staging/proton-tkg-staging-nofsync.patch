@@ -533,232 +533,6 @@ index d2fc629c843..5a97590dbce 100644
  
      desc->VendorId = adapter_id.vendor_id;
      desc->DeviceId = adapter_id.device_id;
-From 4aa052e0c8ae276fc07afcd93d6e290a88214837 Mon Sep 17 00:00:00 2001
-From: Andrew Eikum <aeikum@codeweavers.com>
-Date: Wed, 15 Jan 2020 10:17:23 -0600
-Subject: [PATCH] dsound: Initialize primary buffer with device's channel
- layout
-
-Fixes surround sound in some games, like Borderlands GOTY and Dead
-Space.
----
- dlls/dsound/dsound.c         | 77 +-----------------------------------
- dlls/dsound/dsound_private.h |  1 -
- dlls/dsound/primary.c        | 75 ++++++++++++++++++++++++++++++++++-
- 3 files changed, 76 insertions(+), 77 deletions(-)
-
-diff --git a/dlls/dsound/dsound.c b/dlls/dsound/dsound.c
-index 8e2b839fe89..630d8c7e16a 100644
---- a/dlls/dsound/dsound.c
-+++ b/dlls/dsound/dsound.c
-@@ -23,7 +23,6 @@
- #include <assert.h>
- #include <stdarg.h>
- #include <stdio.h>
--#include <math.h>
- 
- #define COBJMACROS
- 
-@@ -138,9 +137,9 @@ static HRESULT DirectSoundDevice_Create(DirectSoundDevice ** ppDevice)
-     device->ref            = 1;
-     device->priolevel      = DSSCL_NORMAL;
-     device->stopped        = 1;
--    device->speaker_config = DSSPEAKER_COMBINED(DSSPEAKER_STEREO, DSSPEAKER_GEOMETRY_WIDE);
- 
--    DSOUND_ParseSpeakerConfig(device);
-+    device->speaker_config = 0;
-+    device->num_speakers = 0;
- 
-     /* 3D listener initial parameters */
-     device->ds3dl.dwSize   = sizeof(DS3DLISTENER);
-@@ -1127,75 +1126,3 @@ HRESULT WINAPI DirectSoundCreate8(
- 
-     return hr;
- }
--
--void DSOUND_ParseSpeakerConfig(DirectSoundDevice *device)
--{
--    switch (DSSPEAKER_CONFIG(device->speaker_config)) {
--        case DSSPEAKER_MONO:
--            device->speaker_angles[0] = M_PI/180.0f * 0.0f;
--            device->speaker_num[0] = 0;
--            device->num_speakers = 1;
--            device->lfe_channel = -1;
--        break;
--
--        case DSSPEAKER_STEREO:
--        case DSSPEAKER_HEADPHONE:
--            device->speaker_angles[0] = M_PI/180.0f * -90.0f;
--            device->speaker_angles[1] = M_PI/180.0f *  90.0f;
--            device->speaker_num[0] = 0; /* Left */
--            device->speaker_num[1] = 1; /* Right */
--            device->num_speakers = 2;
--            device->lfe_channel = -1;
--        break;
--
--        case DSSPEAKER_QUAD:
--            device->speaker_angles[0] = M_PI/180.0f * -135.0f;
--            device->speaker_angles[1] = M_PI/180.0f *  -45.0f;
--            device->speaker_angles[2] = M_PI/180.0f *   45.0f;
--            device->speaker_angles[3] = M_PI/180.0f *  135.0f;
--            device->speaker_num[0] = 2; /* Rear left */
--            device->speaker_num[1] = 0; /* Front left */
--            device->speaker_num[2] = 1; /* Front right */
--            device->speaker_num[3] = 3; /* Rear right */
--            device->num_speakers = 4;
--            device->lfe_channel = -1;
--        break;
--
--        case DSSPEAKER_5POINT1_BACK:
--            device->speaker_angles[0] = M_PI/180.0f * -135.0f;
--            device->speaker_angles[1] = M_PI/180.0f *  -45.0f;
--            device->speaker_angles[2] = M_PI/180.0f *    0.0f;
--            device->speaker_angles[3] = M_PI/180.0f *   45.0f;
--            device->speaker_angles[4] = M_PI/180.0f *  135.0f;
--            device->speaker_angles[5] = 9999.0f;
--            device->speaker_num[0] = 4; /* Rear left */
--            device->speaker_num[1] = 0; /* Front left */
--            device->speaker_num[2] = 2; /* Front centre */
--            device->speaker_num[3] = 1; /* Front right */
--            device->speaker_num[4] = 5; /* Rear right */
--            device->speaker_num[5] = 3; /* LFE */
--            device->num_speakers = 6;
--            device->lfe_channel = 3;
--        break;
--
--        case DSSPEAKER_5POINT1_SURROUND:
--            device->speaker_angles[0] = M_PI/180.0f *  -90.0f;
--            device->speaker_angles[1] = M_PI/180.0f *  -30.0f;
--            device->speaker_angles[2] = M_PI/180.0f *    0.0f;
--            device->speaker_angles[3] = M_PI/180.0f *   30.0f;
--            device->speaker_angles[4] = M_PI/180.0f *   90.0f;
--            device->speaker_angles[5] = 9999.0f;
--            device->speaker_num[0] = 4; /* Rear left */
--            device->speaker_num[1] = 0; /* Front left */
--            device->speaker_num[2] = 2; /* Front centre */
--            device->speaker_num[3] = 1; /* Front right */
--            device->speaker_num[4] = 5; /* Rear right */
--            device->speaker_num[5] = 3; /* LFE */
--            device->num_speakers = 6;
--            device->lfe_channel = 3;
--        break;
--
--        default:
--            WARN("unknown speaker_config %lu\n", device->speaker_config);
--    }
--}
-diff --git a/dlls/dsound/dsound_private.h b/dlls/dsound/dsound_private.h
-index 69c4a2f3902..1a3e88a0d29 100644
---- a/dlls/dsound/dsound_private.h
-+++ b/dlls/dsound/dsound_private.h
-@@ -202,7 +202,6 @@ HRESULT IKsPrivatePropertySetImpl_Create(REFIID riid, void **ppv) DECLSPEC_HIDDE
- HRESULT DSOUND_Create(REFIID riid, void **ppv);
- HRESULT DSOUND_Create8(REFIID riid, void **ppv);
- HRESULT IDirectSoundImpl_Create(IUnknown *outer_unk, REFIID riid, void **ppv, BOOL has_ds8);
--void DSOUND_ParseSpeakerConfig(DirectSoundDevice *device);
- 
- /* primary.c */
- 
-diff --git a/dlls/dsound/primary.c b/dlls/dsound/primary.c
-index 852ec51b7ff..fdbbc00cd33 100644
---- a/dlls/dsound/primary.c
-+++ b/dlls/dsound/primary.c
-@@ -24,6 +24,7 @@
-  */
- 
- #include <stdarg.h>
-+#include <math.h>
- 
- #define COBJMACROS
- #define NONAMELESSUNION
-@@ -110,6 +111,78 @@ static DWORD DSOUND_FindSpeakerConfig(IMMDevice *mmdevice, int channels)
-     return def;
- }
- 
-+static void DSOUND_ParseSpeakerConfig(DirectSoundDevice *device)
-+{
-+    switch (DSSPEAKER_CONFIG(device->speaker_config)) {
-+        case DSSPEAKER_MONO:
-+            device->speaker_angles[0] = M_PI/180.0f * 0.0f;
-+            device->speaker_num[0] = 0;
-+            device->num_speakers = 1;
-+            device->lfe_channel = -1;
-+        break;
-+
-+        case DSSPEAKER_STEREO:
-+        case DSSPEAKER_HEADPHONE:
-+            device->speaker_angles[0] = M_PI/180.0f * -90.0f;
-+            device->speaker_angles[1] = M_PI/180.0f *  90.0f;
-+            device->speaker_num[0] = 0; /* Left */
-+            device->speaker_num[1] = 1; /* Right */
-+            device->num_speakers = 2;
-+            device->lfe_channel = -1;
-+        break;
-+
-+        case DSSPEAKER_QUAD:
-+            device->speaker_angles[0] = M_PI/180.0f * -135.0f;
-+            device->speaker_angles[1] = M_PI/180.0f *  -45.0f;
-+            device->speaker_angles[2] = M_PI/180.0f *   45.0f;
-+            device->speaker_angles[3] = M_PI/180.0f *  135.0f;
-+            device->speaker_num[0] = 2; /* Rear left */
-+            device->speaker_num[1] = 0; /* Front left */
-+            device->speaker_num[2] = 1; /* Front right */
-+            device->speaker_num[3] = 3; /* Rear right */
-+            device->num_speakers = 4;
-+            device->lfe_channel = -1;
-+        break;
-+
-+        case DSSPEAKER_5POINT1_BACK:
-+            device->speaker_angles[0] = M_PI/180.0f * -135.0f;
-+            device->speaker_angles[1] = M_PI/180.0f *  -45.0f;
-+            device->speaker_angles[2] = M_PI/180.0f *    0.0f;
-+            device->speaker_angles[3] = M_PI/180.0f *   45.0f;
-+            device->speaker_angles[4] = M_PI/180.0f *  135.0f;
-+            device->speaker_angles[5] = 9999.0f;
-+            device->speaker_num[0] = 4; /* Rear left */
-+            device->speaker_num[1] = 0; /* Front left */
-+            device->speaker_num[2] = 2; /* Front centre */
-+            device->speaker_num[3] = 1; /* Front right */
-+            device->speaker_num[4] = 5; /* Rear right */
-+            device->speaker_num[5] = 3; /* LFE */
-+            device->num_speakers = 6;
-+            device->lfe_channel = 3;
-+        break;
-+
-+        case DSSPEAKER_5POINT1_SURROUND:
-+            device->speaker_angles[0] = M_PI/180.0f *  -90.0f;
-+            device->speaker_angles[1] = M_PI/180.0f *  -30.0f;
-+            device->speaker_angles[2] = M_PI/180.0f *    0.0f;
-+            device->speaker_angles[3] = M_PI/180.0f *   30.0f;
-+            device->speaker_angles[4] = M_PI/180.0f *   90.0f;
-+            device->speaker_angles[5] = 9999.0f;
-+            device->speaker_num[0] = 4; /* Rear left */
-+            device->speaker_num[1] = 0; /* Front left */
-+            device->speaker_num[2] = 2; /* Front centre */
-+            device->speaker_num[3] = 1; /* Front right */
-+            device->speaker_num[4] = 5; /* Rear right */
-+            device->speaker_num[5] = 3; /* LFE */
-+            device->num_speakers = 6;
-+            device->lfe_channel = 3;
-+        break;
-+
-+        default:
-+            WARN("unknown speaker_config %u\n", device->speaker_config);
-+    }
-+}
-+
- static HRESULT DSOUND_WaveFormat(DirectSoundDevice *device, IAudioClient *client,
- 				 BOOL forcewave, WAVEFORMATEX **wfx)
- {
-@@ -124,7 +197,7 @@ static HRESULT DSOUND_WaveFormat(DirectSoundDevice *device, IAudioClient *client
-         if (FAILED(hr))
-             return hr;
- 
--        if (mixwfe->Format.nChannels < device->num_speakers) {
-+        if (device->num_speakers == 0 || mixwfe->Format.nChannels < device->num_speakers) {
-             device->speaker_config = DSOUND_FindSpeakerConfig(device->mmdevice, mixwfe->Format.nChannels);
-             DSOUND_ParseSpeakerConfig(device);
-         } else if (mixwfe->Format.nChannels > device->num_speakers) {
 From b739d48093cce805b7b4f48fdbd9d0bb62bc8013 Mon Sep 17 00:00:00 2001
 From: Brendan Shanks <bshanks@codeweavers.com>
 Date: Mon, 13 Apr 2020 16:25:47 -0700
@@ -803,74 +577,6 @@ index 5a97590dbce..a5563498cdd 100644
      return hr;
  }
  
-From c619409f235cf660cdd4fd3295d5e04ec628daa1 Mon Sep 17 00:00:00 2001
-From: Alexey Prokhin <alexey@prokhin.ru>
-Date: Thu, 23 Apr 2020 12:29:55 +0300
-Subject: [PATCH] kernelbase: Set the proper error code in
- GetQueuedCompletionStatus{Ex} when the handle is closed.
-
-Planet Zoo relies on it being ERROR_ABANDONED_WAIT_0.
----
- dlls/kernelbase/sync.c | 2 ++
- 1 file changed, 2 insertions(+)
-
-diff --git a/dlls/kernelbase/sync.c b/dlls/kernelbase/sync.c
-index 0ae3aadde92..e95ede8aed5 100644
---- a/dlls/kernelbase/sync.c
-+++ b/dlls/kernelbase/sync.c
-@@ -960,6 +960,7 @@ BOOL WINAPI DECLSPEC_HOTPATCH GetQueuedCompletionStatus( HANDLE port, LPDWORD co
-     }
- 
-     if (status == STATUS_TIMEOUT) SetLastError( WAIT_TIMEOUT );
-+    else if (status == ERROR_WAIT_NO_CHILDREN) SetLastError( ERROR_ABANDONED_WAIT_0 );
-     else SetLastError( RtlNtStatusToDosError(status) );
-     return FALSE;
- }
-@@ -981,6 +982,7 @@ BOOL WINAPI DECLSPEC_HOTPATCH GetQueuedCompletionStatusEx( HANDLE port, OVERLAPP
-     if (ret == STATUS_SUCCESS) return TRUE;
-     else if (ret == STATUS_TIMEOUT) SetLastError( WAIT_TIMEOUT );
-     else if (ret == STATUS_USER_APC) SetLastError( WAIT_IO_COMPLETION );
-+    else if (ret == ERROR_WAIT_NO_CHILDREN) SetLastError( ERROR_ABANDONED_WAIT_0 );
-     else SetLastError( RtlNtStatusToDosError(ret) );
-     return FALSE;
- }
-
-From 0255dbc3afd3ff673fa701e7802474483252fcb2 Mon Sep 17 00:00:00 2001
-From: Paul Gofman <pgofman@codeweavers.com>
-Date: Mon, 13 Jul 2020 10:21:49 -0500
-Subject: [PATCH] ntdll: Handle NULL object name buffer in
- nt_to_unix_file_name_attr().
-
----
- dlls/ntdll/tests/file.c | 22 +++++++++++++++++++++-
- dlls/ntdll/unix/file.c  |  8 ++++++++
- 2 files changed, 29 insertions(+), 1 deletion(-)
-
-diff --git a/dlls/ntdll/unix/file.c b/dlls/ntdll/unix/file.c
-index 20eb6a05922..d99c6b462b2 100644
---- a/dlls/ntdll/unix/file.c
-+++ b/dlls/ntdll/unix/file.c
-@@ -3593,14 +3593,20 @@ NTSTATUS nt_to_unix_file_name( const OBJECT_ATTRIBUTES *attr, char **name_ret,
-     char *unix_name;
-     int name_len, unix_len;
-     NTSTATUS status;
- 
-+    if (!attr->ObjectName->Buffer && attr->ObjectName->Length)
-+        return STATUS_ACCESS_VIOLATION;
-+
-     fileobj.FileName = *attr->ObjectName;
- reparse:
-     if (reparse_count++ == 31)
-         return STATUS_REPARSE_POINT_NOT_RESOLVED;
-     if (!rootdir) /* without root dir fall back to normal lookup */
-     {
-+        if (!attr->ObjectName->Buffer)
-+            return STATUS_OBJECT_PATH_SYNTAX_BAD;
-+
-         status = nt_to_unix_file_name_no_root( &fileobj, name_ret, disposition );
-         if (status == STATUS_REPARSE) goto reparse;
-         if (fileobj.FileName.Buffer != attr->ObjectName->Buffer) free( fileobj.FileName.Buffer);
-         return status;
 From 514d3e11c999b11a95ab35df5b4ab454d34fe791 Mon Sep 17 00:00:00 2001
 From: Paul Gofman <pgofman@codeweavers.com>
 Date: Wed, 13 May 2020 13:55:55 +0300
@@ -1264,9 +970,9 @@ index 43268221936..f39d6f0cd7b 100644
  }
  
 @@ -3955,7 +3955,7 @@ static enum fill_status fill_sounddevice( struct table *table, const struct expr
- 
      rec = (struct record_sounddevice *)table->data;
-     rec->deviceid = get_sounddevice_pnpdeviceid( &desc );
+     rec->caption = L"Wine Audio Device";
+     rec->deviceid = L"HDAUDIO\\FUNC_01&VEN_0000&DEV_0000&SUBSYS_00000000&REV_0000\\0&DEADBEEF&0&DEAD";
 -    rec->manufacturer = L"The Wine Project";
 +    rec->manufacturer = L"The Proton Project";
      rec->name = L"Wine Audio Device";
@@ -1526,9 +1232,9 @@ index a4a10bc8e93..551ef146cd7 100644
  
 -EXTRADLLFLAGS = -Wb,--prefer-native
 -
- SOURCES = \
- 	version.rc \
- 	vulkan.c
+ VER_FILEDESCRIPTION_STR = "Wine Vulkan Loader"
+ # Set to 1.0.0 so the official Vulkan runtime installer will replace this file
+ VER_PRODUCTVERSION      = 1,0,0,0
 From 07461415f4399934a3c03c8dd6e146167bd67dfd Mon Sep 17 00:00:00 2001
 From: Paul Gofman <pgofman@codeweavers.com>
 Date: Thu, 25 Mar 2021 17:53:37 +0300
@@ -1542,7 +1248,7 @@ diff --git a/loader/wine.inf.in b/loader/wine.inf.in
 index 4df88d1f386..1506a73573b 100644
 --- a/loader/wine.inf.in
 +++ b/loader/wine.inf.in
-@@ -91,10 +91,11 @@ AddReg=\
+@@ -67,6 +67,7 @@ AddReg=\
      MCI,\
      Misc,\
      OLE,\
@@ -1550,42 +1256,30 @@ index 4df88d1f386..1506a73573b 100644
      Printing,\
      Services, \
      SessionMgr,\
-     Tapi,\
-     ThemeManager,\
-     VersionInfo,\
-     LicenseInformation
-@@ -117,10 +118,11 @@  AddReg=\
-     MCI,\
-     Misc,\
-     OLE,\
+@@ -96,6 +96,7 @@  AddReg=\
+ WineFakeDlls=FakeDllsWin64
+ AddReg=\
+     CurrentVersionWow64.ntamd64,\
 +    Packages.ntamd64,\
-     Printing,\
-     Services, \
-     SessionMgr,\
-     Tapi,\
-     ThemeManager,\
-     VersionInfo.ntamd64,\
-     LicenseInformation
-@@ -142,10 +144,11 @@  AddReg=\
-     MCI,\
-     Misc,\
-     OLE,\
+     VCRuntime.ntamd64,\
+     VersionInfo
+ 
+@@ -104,6 +104,7 @@  AddReg=\
+ WineFakeDlls=FakeDllsWin64
+ AddReg=\
+     CurrentVersionWow64.ntarm64,\
 +    Packages.ntarm64,\
-     Printing,\
-     Services, \
-     SessionMgr,\
-     Tapi,\
-     ThemeManager,\
-     VersionInfo.ntamd64,\
-     LicenseInformation
-@@ -163,6 +166,7 @@ AddReg=\
+     VCRuntime.ntamd64,\
+     VCRuntime.ntarm64,\
+     VersionInfo
+@@ -119,6 +119,7 @@ AddReg=\
+     LicenseInformation,\
      MCI,\
      Misc,\
 +    Packages.wow64,\
-     Tapi,\
-     VersionInfo,\
-     LicenseInformation
+     VersionInfo
  
+ [Wow64Install.ntx86]
 @@ -247,6 +251,7 @@ CurrentVersion="Software\Microsoft\Windows\CurrentVersion"
  CurrentVersionNT="Software\Microsoft\Windows NT\CurrentVersion"
  FontSubStr="Software\Microsoft\Windows NT\CurrentVersion\FontSubstitutes"
@@ -2125,49 +1819,6 @@ index d8db79b1263a..4631ac8d0bcf 100644
  static const struct
  {
      UINT32 code;
-
-
-From 995fdfb8cdb0a8eed82e16640034dc9673ded681 Mon Sep 17 00:00:00 2001
-From: Paul Gofman <pgofman@codeweavers.com>
-Date: Fri, 12 Mar 2021 23:58:39 +0300
-Subject: [PATCH 14/16] esync: Fix restoring the objects state on wait all
- objects retry.
-
----
- dlls/ntdll/unix/esync.c | 16 ++++++++++++++--
- 1 file changed, 14 insertions(+), 2 deletions(-)
-
-diff --git a/dlls/ntdll/unix/esync.c b/dlls/ntdll/unix/esync.c
-index 9a615fb277c..810477d02a0 100644
---- a/dlls/ntdll/unix/esync.c
-+++ b/dlls/ntdll/unix/esync.c
-@@ -1168,10 +1168,22 @@ tryagain:
-                         {
-                             /* We were too slow. Put everything back. */
-                             value = 1;
--                            for (j = i; j >= 0; j--)
-+                            for (j = i - 1; j >= 0; j--)
-                             {
--                                if (write( obj->fd, &value, sizeof(value) ) == -1)
-+                                struct esync *obj = objs[j];
-+
-+                                if (obj->type == ESYNC_MUTEX)
-+                                {
-+                                    struct mutex *mutex = obj->shm;
-+
-+                                    if (mutex->tid == GetCurrentThreadId())
-+                                        continue;
-+                                }
-+                                if (write( fds[j].fd, &value, sizeof(value) ) == -1)
-+                                {
-+                                    ERR("write failed.\n");
-                                     return errno_to_status( errno );
-+                                }
-                             }
- 
-                             goto tryagain;  /* break out of two loops and a switch */
--- 
-2.30.2
 
 From 47be204baf902d876fc5e5b0240b6167500ec0dd Mon Sep 17 00:00:00 2001
 From: Paul Gofman <pgofman@codeweavers.com>
@@ -2767,81 +2418,6 @@ index 82e5fbf811d..b1153ac4927 100644
          UINT sync_interval, UINT flags, const DXGI_PRESENT_PARAMETERS *present_parameters)
  {
      struct d3d11_swapchain *swapchain = d3d11_swapchain_from_IDXGISwapChain1(iface);
-From 0262122fc328410e6b0b410837c35881b3aa85af Mon Sep 17 00:00:00 2001
-From: Paul Gofman <pgofman@codeweavers.com>
-Date: Mon, 19 Apr 2021 15:29:39 +0300
-Subject: [PATCH] winevulkan: Don't hardcode performance frequency.
-
-For Forza Horizon 4.
----
- dlls/winevulkan/loader.c    | 33 +++++++++++++++++++++++++++++++++
- dlls/winevulkan/make_vulkan |  2 +-
- 2 files changed, 34 insertions(+), 1 deletion(-)
-
-diff --git a/dlls/winevulkan/loader.c b/dlls/winevulkan/loader.c
-index d3ac9f57763..fcb79983114 100644
---- a/dlls/winevulkan/loader.c
-+++ b/dlls/winevulkan/loader.c
-@@ -442,6 +442,39 @@ void WINAPI vkGetPhysicalDeviceProperties2KHR(VkPhysicalDevice phys_dev,
-     fill_luid_property(properties2);
- }
- 
-+VkResult WINAPI vkGetCalibratedTimestampsEXT(VkDevice device, uint32_t timestampCount, const VkCalibratedTimestampInfoEXT *pTimestampInfos, uint64_t *pTimestamps, uint64_t *pMaxDeviation)
-+{
-+    struct vkGetCalibratedTimestampsEXT_params params;
-+    static LARGE_INTEGER freq;
-+    VkResult res;
-+    uint32_t i;
-+
-+    if (!freq.QuadPart)
-+    {
-+        LARGE_INTEGER temp;
-+
-+        QueryPerformanceFrequency(&temp);
-+        InterlockedCompareExchange64(&freq.QuadPart, temp.QuadPart, 0);
-+    }
-+
-+    params.device = device;
-+    params.timestampCount = timestampCount;
-+    params.pTimestampInfos = pTimestampInfos;
-+    params.pTimestamps = pTimestamps;
-+    params.pMaxDeviation = pMaxDeviation;
-+    res = UNIX_CALL(vkGetCalibratedTimestampsEXT, &params);
-+    if (res != VK_SUCCESS)
-+        return res;
-+
-+    for (i = 0; i < timestampCount; i++)
-+    {
-+        if (pTimestampInfos[i].timeDomain != VK_TIME_DOMAIN_QUERY_PERFORMANCE_COUNTER_EXT) continue;
-+        pTimestamps[i] *= freq.QuadPart / 10000000;
-+    }
-+
-+    return VK_SUCCESS;
-+}
-+
- VkResult WINAPI vkCreateDevice(VkPhysicalDevice phys_dev, const VkDeviceCreateInfo *create_info,
-                                const VkAllocationCallbacks *allocator, VkDevice *ret)
- {
-diff --git a/dlls/winevulkan/make_vulkan b/dlls/winevulkan/make_vulkan
-index 516c817715f..a0287c1ff09 100755
---- a/dlls/winevulkan/make_vulkan
-+++ b/dlls/winevulkan/make_vulkan
-@@ -245,7 +245,6 @@ MANUAL_UNIX_THUNKS = {
-     "vkEnumeratePhysicalDevices",
-     "vkFreeCommandBuffers",
-     "vkFreeMemory",
--    "vkGetCalibratedTimestampsEXT",
-     "vkGetCalibratedTimestampsKHR",
-     "vkGetDeviceProcAddr",
-     "vkGetDeviceQueue",
-@@ -285,6 +285,7 @@ MANUAL_LOADER_THUNKS = {
-     "vkEnumerateInstanceExtensionProperties",
-     "vkEnumerateInstanceVersion",
-     "vkFreeCommandBuffers",
-+    "vkGetCalibratedTimestampsEXT",
-     "vkGetPhysicalDeviceProperties2",
-     "vkGetPhysicalDeviceProperties2KHR",
- }
 From 003223a6816f3121a8e60d8ef3ec79e1768878ce Mon Sep 17 00:00:00 2001
 From: Andrew Eikum <aeikum@codeweavers.com>
 Date: Fri, 7 May 2021 13:44:00 -0500

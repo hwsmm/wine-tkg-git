@@ -5,6 +5,7 @@ You must be logged in to GitHub in order to download Wine or Proton nightly buil
 ## Wine nightly builds
 
 - wine-staging patchset applied
+- ntsync support added as needed
 
 Wine | [Arch Linux](https://github.com/Frogging-Family/wine-tkg-git/actions/workflows/wine-arch.yml) | [Fedora](https://github.com/Frogging-Family/wine-tkg-git/actions/workflows/wine-fedora.yml) | [Ubuntu](https://github.com/Frogging-Family/wine-tkg-git/actions/workflows/wine-ubuntu.yml) |
 -------------|--------|--------|-------|
@@ -12,16 +13,16 @@ Wine | [Arch Linux](https://github.com/Frogging-Family/wine-tkg-git/actions/work
 Valve Wine | [Exp Bleeding Edge Arch Linux](https://github.com/Frogging-Family/wine-tkg-git/actions/workflows/wine-valvexbe-pacman.yml) | [Exp Bleeding Edge Other distro](https://github.com/Frogging-Family/wine-tkg-git/actions/workflows/wine-valvexbe.yml) |
 -------------|--------|--------|
 
-*The Exp Bleeding Edge Other distro and LoL versions are built on Ubuntu latest, which should work fine on most distros not using years old packages*
-
-*! The LoL version should only be used for League of Legends !*
+*The Exp Bleeding Edge Other distro versions are built on Ubuntu latest, which should work fine on most distros not using years old packages*
 
 ## Proton nightly builds
 
 - wine-staging patchset applied
-- built on Arch current, making glibc 2.36 a requirement
+- wine master version is built against Arch current, making glibc 2.42+ a requirement
+- valve exp be version is built against the sniper container
+- ntsync support added as needed
 
-Proton | [Valve Exp Bleeding Edge](https://github.com/Frogging-Family/wine-tkg-git/actions/workflows/proton-valvexbe-arch-nopackage.yml) | [Wine Master](https://github.com/Frogging-Family/wine-tkg-git/actions/workflows/proton-arch-nopackage.yml) |
+Proton | [Valve Exp Bleeding Edge](https://github.com/Frogging-Family/wine-tkg-git/actions/workflows/proton-valvexbe-sniper.yml) | [Wine Master (hit or miss edition)](https://github.com/Frogging-Family/wine-tkg-git/actions/workflows/proton-arch-nopackage.yml) |
 -------------|--------|--------|
 
 (drop the extracted folder in `/$HOME/.steam/root/compatibilitytools.d/` or, for Ubuntu/Debian based, the `/$HOME/.steam/compatibilitytools.d/` dir)
